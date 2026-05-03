@@ -2,6 +2,28 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.6.0 — 2026-05-03
+
+History-based selection remap per SPEC.md §"Selection survival across mutation". After a target shape is modified — boolean ops, fillets, etc. — `InteractiveContext.remap(_:using:rebindingTo:)` translates an old `Selection`'s sub-shape indices to the new shape's indices via OCCTSwift's `TopologyGraph` history records.
+
+The renderer-backed highlight overlay path SPEC also flags as v0.6+ work has been filed as [OCCTSwiftViewport#25](https://github.com/gsdali/OCCTSwiftViewport/issues/25); AIS will pick it up in a v0.6.x once the renderer ships per-triangle style buffers. The current cheap-route normal-offset overlay continues to ship in the meantime.
+
+**New public surface:**
+
+- `enum RemapStrategy: Sendable` — `.dropMissing` (default; safest — drops sub-shapes the history doesn't recognise as derived from the original) / `.keepUnchanged` (preserves the original index when no derivative is recorded — only safe for attribute-only or in-place edits where indices don't shift).
+- `InteractiveContext.remap(_ selection:using:rebindingTo:strategy:) -> Selection` — translates each sub-shape:
+  - **1 → 1** (face / edge / vertex modified in place): the result has the new index.
+  - **1 → N** (e.g. an edge split): expands to N sub-shapes, one per derived node.
+  - **1 → 0** (deleted): handled per `strategy`.
+  - `.body(_)` always rebinds to `newObject`.
+- Cross-kind history entries (e.g. a face → edges record) are filtered — a `Selection.face` slot can only hold a face index.
+
+**Caveat documented in code:** `TopologyGraph.findDerived` returns an empty list both for "node not mentioned in any history record" *and* for "node explicitly recorded as deleted (`replacements: []`)". The two are indistinguishable through the current OCCTSwift surface, so `.keepUnchanged` may incorrectly preserve explicitly-deleted nodes. Use `.dropMissing` when you don't know whether the operation deleted anything.
+
+**Tests:** 10 new in `Remap` (body always rebinds; dropMissing default behaviour; keepUnchanged in-range and out-of-range; recorded 1→1, 1→N expansion, 1→0 deletion; cross-kind history filtered; mixed-kind selection remaps each entry independently; empty input). Total: **146 across 12 suites**.
+
+**Dependencies:** unchanged from v0.5.0 — `TopologyGraph` has been on the kernel surface since OCCTSwift v0.141.
+
 ## v0.5.0 — 2026-05-03
 
 Angular and radial dimensions per SPEC.md §"Sequencing" v0.5. With this release the dimension surface is feature-complete (linear / angular / radial) and the public API listed in SPEC.md §"Dimensions" is now fully implemented. Rendering still rides on `MetalViewportView`'s built-in `MeasurementOverlay` — no renderer-side changes.
