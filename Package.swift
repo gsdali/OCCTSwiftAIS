@@ -38,7 +38,10 @@ let package = Package(
         .testTarget(
             name: "OCCTSwiftAISTests",
             dependencies: ["OCCTSwiftAIS"],
-            path: "Tests/OCCTSwiftAISTests"
+            path: "Tests/OCCTSwiftAISTests",
+            resources: [
+                .copy("Fixtures")
+            ]
         ),
     ]
 )

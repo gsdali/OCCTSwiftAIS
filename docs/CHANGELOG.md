@@ -2,6 +2,24 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.7.0 — 2026-05-03
+
+Real-shape STEP integration tests. The end-to-end pipeline (`CADFileLoader.load` → `InteractiveContext.display` → synthetic `PickResult` → `Selection`) now runs against actual machined-part geometry, not just OCCT primitives.
+
+**New:**
+
+- `Tests/OCCTSwiftAISTests/Fixtures/` — three small (~16 KB each) committed STEP files representing rectangular CAM stock plates (`101-CAM_test_1_6mm_stock`, `_2_`, `_3_`). Wired through `Package.swift`'s test target via `resources: [.copy("Fixtures")]` and accessed via `Bundle.module.url(forResource:withExtension:subdirectory:)`.
+- `Tests/OCCTSwiftAISTests/STEPIntegrationTests.swift` — two suites:
+  - `STEP integration — committed stock fixtures` (`.serialized`, `@MainActor`): 7 tests × 3 fixtures = 21 parametrised cases. Asserts load succeeds, single-shape result, six-face / twelve-edge / eight-vertex topology of a rectangular block, non-degenerate bounds, mesh tessellation produces triangles + populated edge / vertex pick buffers, face / vertex pick `PickResult` round-trips through to `Selection`, linear dimension across opposite parallel faces matches a bbox extent, `remap` with `keepUnchanged` preserves the index when the topology is identical.
+  - `STEP integration — local WIP fixtures (skip-on-missing)` (`.serialized`): same shape on the much larger (~5–8 MB each) machined-part WIP files in `test_files/`. Walks up from `Bundle.module.bundleURL` looking for the package root + `test_files/<name>.step`; silently passes when the file is absent so CI without the WIP files stays green. Asserts WIP topology is more complex than stock (more than 6 faces, 12 edges, 8 vertices) and the same display + pick round-trip works on real-world geometry.
+- `.gitignore` excludes `test_files/` so the committed fixtures stay small.
+
+**Suite ordering:** `.serialized` is required on both — the OCCT NCollection arm64 race triggers SIGSEGV under Swift Testing's intra-process parallelism even with `--num-workers 1` (which controls processes, not in-process tasks).
+
+**Tests:** **155 across 14 suites**, all green. WIP suite runs in ~15s on the three multi-MB files; stock suite is sub-second.
+
+**Dependencies:** unchanged from v0.6.3.
+
 ## v0.6.3 — 2026-05-03
 
 Documentation polish. No code or test changes.
