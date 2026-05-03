@@ -178,6 +178,32 @@ public final class InteractiveContext: ObservableObject {
         updateSelectionVisuals()
     }
 
+    // MARK: - Internal accessors (used by ManipulatorWidget)
+
+    /// The body ID currently associated with `object`, or nil if not displayed.
+    func bodyID(for object: InteractiveObject) -> String? {
+        entriesByID[object.id]?.bodyID
+    }
+
+    /// The source `ViewportBody` for `object`, or nil if the object is not displayed
+    /// or its tessellation produced no mesh.
+    func sourceBody(for object: InteractiveObject) -> ViewportBody? {
+        guard let id = entriesByID[object.id]?.bodyID else { return nil }
+        return bodies.first { $0.id == id }
+    }
+
+    /// Append a body created by an internal subsystem (manipulator, dimension, …).
+    /// The body is **not** registered as a selectable `InteractiveObject` and is
+    /// invisible to selection / hover wiring.
+    func appendInternalBody(_ body: ViewportBody) {
+        bodies.append(body)
+    }
+
+    /// Remove every body whose id satisfies `predicate`.
+    func removeInternalBodies(where predicate: (String) -> Bool) {
+        bodies.removeAll { predicate($0.id) }
+    }
+
     // MARK: - Highlight overlay (cheap route — sub-mesh + normal offset)
 
     private func updateSelectionVisuals() {
