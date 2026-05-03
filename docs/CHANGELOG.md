@@ -2,6 +2,21 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.2.1 — 2026-05-03
+
+`ManipulatorWidget` adopts the renderer-side primitives that landed in [OCCTSwiftViewport v0.52.0](https://github.com/gsdali/OCCTSwiftViewport/releases/tag/v0.52.0) (resolves OCCTSwiftViewport#23). No public API changes.
+
+**Behaviour:**
+
+- Arrow bodies set `renderLayer = .overlay` and `pickLayer = .widget`. The renderer draws them after the selection-outline pass with `depthCompareFunction = .always`, so manipulator handles stay visible (and grabbable) even when occluded by the target. Widget picks now flow through `viewport.widgetPickResult` instead of polluting `viewport.pickResult` — the previous id-prefix filter on `InteractiveContext.handlePick` is now redundant but harmless.
+- Arrow geometry is built **once** at install (centered on origin in vertex space). Per-frame motion is applied via `ViewportBody.transform`; no more vertex-data churn during drag.
+- The target body's transform updates **live** during drag — `body.transform = preInstallTransform * widget.transform`. Users see the body translate in real time, not just on `onCommit`. The pre-install transform is captured at `install(in:)` and restored on `uninstall()`, so the widget's running translation does not survive teardown.
+- `install(in:)` against a target whose body already has a non-identity transform composes correctly: drags apply on top, uninstall restores the original.
+
+**Dependencies:** floor raised to `OCCTSwiftTools` ≥ 0.3.0 (transitively `OCCTSwiftViewport` ≥ 0.52.0, `OCCTSwift` ≥ 0.168.0).
+
+**Tests:** 5 new (`t_arrowsAreOverlayLayer`, `t_arrowsAreWidgetPickLayer`, `t_dragUpdatesTargetBodyTransformLive`, `t_uninstall_restoresTargetBodyTransform`, `t_install_capturesPreExistingTargetTransform`). Total: 56 across 5 suites.
+
 ## v0.2.0 — 2026-05-03
 
 Translate manipulator widget — the data + math layer of SPEC.md §"Manipulator widget". `ManipulatorWidget` ships an axis-arrow gizmo for translating an `InteractiveObject`: install adds three colored arrow bodies to the scene, hit-test maps an NDC click to the picked axis (or `nil`), drag math projects the pick ray onto the axis line via closest-point-between-two-lines, with optional snap-to-step. Callbacks (`onChange` / `onCommit`) report the running and committed `simd_float4x4`.

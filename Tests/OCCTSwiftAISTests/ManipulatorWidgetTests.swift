@@ -155,14 +155,16 @@ struct ManipulatorWidgetTests {
         widget.size = 2.0
         widget.install(in: ctx)
 
-        let initialMin = arrowMinX(in: ctx, target: obj)
+        let initialT = arrowTransform(in: ctx, target: obj, axis: .x)
         let startNDC = try ndc(of: .zero)
         let endNDC   = try ndc(of: SIMD3<Float>(1, 0, 0))
         widget.beginDrag(axis: .x, ndc: startNDC, camera: Self.camera, aspect: Self.aspect)
         widget.updateDrag(ndc: endNDC, camera: Self.camera, aspect: Self.aspect)
 
-        let movedMin = arrowMinX(in: ctx, target: obj)
-        #expect(movedMin > initialMin + 0.5, "expected arrow geometry to follow the running transform along +X")
+        let movedT = arrowTransform(in: ctx, target: obj, axis: .x)
+        let initialTx = initialT?.columns.3.x ?? 0
+        let movedTx = movedT?.columns.3.x ?? 0
+        #expect(movedTx > initialTx + 0.5, "expected the X arrow's body.transform to translate by ~drag delta on +X")
     }
 
     @Test func t_snapTranslate_roundsDeltaToStep() throws {
@@ -252,17 +254,102 @@ struct ManipulatorWidgetTests {
         #expect(widget.transform == matrix_identity_float4x4)
     }
 
+    // MARK: - Render / pick layers (v0.2.1)
+
+    @Test func t_arrowsAreOverlayLayer() throws {
+        let ctx = makeContext()
+        let obj = ctx.display(try makeBox())
+        let widget = ManipulatorWidget(target: obj)
+        widget.install(in: ctx)
+        let arrows = widgetBodies(ctx, target: obj)
+        #expect(arrows.allSatisfy { $0.renderLayer == .overlay })
+    }
+
+    @Test func t_arrowsAreWidgetPickLayer() throws {
+        let ctx = makeContext()
+        let obj = ctx.display(try makeBox())
+        let widget = ManipulatorWidget(target: obj)
+        widget.install(in: ctx)
+        let arrows = widgetBodies(ctx, target: obj)
+        #expect(arrows.allSatisfy { $0.pickLayer == .widget })
+    }
+
+    // MARK: - Live target body transform during drag (v0.2.1)
+
+    @Test func t_dragUpdatesTargetBodyTransformLive() throws {
+        let ctx = makeContext()
+        let obj = ctx.display(try makeBox())
+        let widget = ManipulatorWidget(target: obj)
+        widget.size = 2.0
+        widget.install(in: ctx)
+
+        let beforeT = ctx.sourceBody(for: obj)?.transform ?? matrix_identity_float4x4
+        #expect(beforeT == matrix_identity_float4x4)
+
+        widget.beginDrag(axis: .x, ndc: try ndc(of: .zero), camera: Self.camera, aspect: Self.aspect)
+        widget.updateDrag(ndc: try ndc(of: SIMD3<Float>(0.5, 0, 0)), camera: Self.camera, aspect: Self.aspect)
+
+        let liveT = ctx.sourceBody(for: obj)?.transform ?? matrix_identity_float4x4
+        #expect(abs(liveT.columns.3.x - 0.5) < 1e-3, "target body transform should reflect running drag along +X")
+    }
+
+    @Test func t_uninstall_restoresTargetBodyTransform() throws {
+        let ctx = makeContext()
+        let obj = ctx.display(try makeBox())
+        let widget = ManipulatorWidget(target: obj)
+        widget.size = 2.0
+        widget.install(in: ctx)
+
+        widget.beginDrag(axis: .x, ndc: try ndc(of: .zero), camera: Self.camera, aspect: Self.aspect)
+        widget.updateDrag(ndc: try ndc(of: SIMD3<Float>(0.5, 0, 0)), camera: Self.camera, aspect: Self.aspect)
+        widget.endDrag(commit: true)
+        widget.uninstall()
+
+        let restored = ctx.sourceBody(for: obj)?.transform ?? .init()
+        #expect(restored == matrix_identity_float4x4, "uninstall must restore target body's pre-install transform")
+    }
+
+    @Test func t_install_capturesPreExistingTargetTransform() throws {
+        // If the target body already has a non-identity transform, the widget
+        // should layer onto it, and uninstall should restore it.
+        let ctx = makeContext()
+        let obj = ctx.display(try makeBox())
+        let preInstall = simd_float4x4(SIMD4<Float>(1, 0, 0, 0),
+                                       SIMD4<Float>(0, 1, 0, 0),
+                                       SIMD4<Float>(0, 0, 1, 0),
+                                       SIMD4<Float>(7, 0, 0, 1))
+        if let i = ctx.bodies.firstIndex(where: { $0.id == "ais.\(obj.id.uuidString)" }) {
+            ctx.bodies[i].transform = preInstall
+        }
+
+        let widget = ManipulatorWidget(target: obj)
+        widget.size = 2.0
+        widget.install(in: ctx)
+
+        widget.beginDrag(axis: .x, ndc: try ndc(of: .zero), camera: Self.camera, aspect: Self.aspect)
+        widget.updateDrag(ndc: try ndc(of: SIMD3<Float>(0.5, 0, 0)), camera: Self.camera, aspect: Self.aspect)
+        widget.endDrag(commit: true)
+
+        let live = ctx.sourceBody(for: obj)?.transform ?? .init()
+        #expect(abs(live.columns.3.x - 7.5) < 1e-3, "running drag should compose with the pre-install transform")
+
+        widget.uninstall()
+        let restored = ctx.sourceBody(for: obj)?.transform ?? .init()
+        #expect(abs(restored.columns.3.x - 7.0) < 1e-3, "uninstall must restore exactly the pre-install transform")
+    }
+
     // MARK: - Helpers
 
-    private func arrowMinX(in ctx: InteractiveContext, target: InteractiveObject) -> Float {
-        let xArrow = ctx.bodies.first { $0.id == "ais.widget.\(target.id.uuidString).x" }
-        guard let body = xArrow else { return -.infinity }
-        var minX: Float = .infinity
-        var i = 0
-        while i + 5 < body.vertexData.count {
-            minX = min(minX, body.vertexData[i])
-            i += 6
+    private func arrowTransform(in ctx: InteractiveContext, target: InteractiveObject, axis: ManipulatorWidget.Axis) -> simd_float4x4? {
+        let id = "ais.widget.\(target.id.uuidString).\(suffix(for: axis))"
+        return ctx.bodies.first(where: { $0.id == id })?.transform
+    }
+
+    private func suffix(for axis: ManipulatorWidget.Axis) -> String {
+        switch axis {
+        case .x: return "x"
+        case .y: return "y"
+        case .z: return "z"
         }
-        return minX
     }
 }

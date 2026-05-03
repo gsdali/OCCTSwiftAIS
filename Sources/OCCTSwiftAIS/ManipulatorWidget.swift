@@ -103,6 +103,9 @@ public final class ManipulatorWidget: ObservableObject {
 
     private weak var context: InteractiveContext?
     private var pivot: SIMD3<Float> = .zero
+    /// Target body's transform at install time. Restored on uninstall so the
+    /// widget's running translation doesn't leak into scene state once removed.
+    private var preInstallTargetTransform: simd_float4x4 = matrix_identity_float4x4
 
     private struct DragState {
         let axis: Axis
@@ -126,7 +129,11 @@ public final class ManipulatorWidget: ObservableObject {
         guard !isInstalled else { return }
         self.context = context
         self.pivot = computePivot(in: context) ?? .zero
-        rebuildArrowBodies()
+        self.preInstallTargetTransform = context.sourceBody(for: target)?.transform
+            ?? matrix_identity_float4x4
+        buildArrowBodies()
+        applyArrowTransforms()
+        applyTargetTransform()
         isInstalled = true
     }
 
@@ -138,6 +145,12 @@ public final class ManipulatorWidget: ObservableObject {
         }
         let prefix = bodyIDPrefix
         context.removeInternalBodies { $0.hasPrefix(prefix) }
+        // Restore the target body's pre-install transform — the widget's
+        // running translation should not survive uninstall.
+        if let targetID = context.bodyID(for: target),
+           let i = context.bodies.firstIndex(where: { $0.id == targetID }) {
+            context.bodies[i].transform = preInstallTargetTransform
+        }
         self.context = nil
         isInstalled = false
         activeAxis = nil
@@ -209,7 +222,8 @@ public final class ManipulatorWidget: ObservableObject {
         newTransform.columns.3.y += translation.y
         newTransform.columns.3.z += translation.z
         transform = newTransform
-        rebuildArrowBodies()
+        applyArrowTransforms()
+        applyTargetTransform()
         onChange?(transform)
     }
 
@@ -228,7 +242,8 @@ public final class ManipulatorWidget: ObservableObject {
     public func reset() {
         transform = matrix_identity_float4x4
         if isInstalled {
-            rebuildArrowBodies()
+            applyArrowTransforms()
+            applyTargetTransform()
         }
     }
 
@@ -243,15 +258,17 @@ public final class ManipulatorWidget: ObservableObject {
         return centerOfVertexData(body.vertexData, stride: 6)
     }
 
-    private func rebuildArrowBodies() {
+    /// Build arrow geometry once (centered at world origin in vertex coords).
+    /// Per-frame motion is then applied via `ViewportBody.transform`, not by
+    /// rebuilding vertex data.
+    private func buildArrowBodies() {
         guard let context else { return }
         let prefix = bodyIDPrefix
         context.removeInternalBodies { $0.hasPrefix(prefix) }
-        let origin = pivot + currentTranslation()
         for axis in Axis.allCases {
             let body = ManipulatorGeometry.makeAxisArrow(
                 id: bodyID(for: axis),
-                origin: origin,
+                origin: .zero,
                 direction: axis.direction,
                 length: size,
                 radius: shaftRadius,
@@ -261,9 +278,38 @@ public final class ManipulatorWidget: ObservableObject {
         }
     }
 
+    /// Move every arrow body to `pivot + transform.translation` via
+    /// `ViewportBody.transform` — no vertex-data churn.
+    private func applyArrowTransforms() {
+        guard let context else { return }
+        let translation = pivot + currentTranslation()
+        let m = translationMatrix(translation)
+        for axis in Axis.allCases {
+            let id = bodyID(for: axis)
+            if let i = context.bodies.firstIndex(where: { $0.id == id }) {
+                context.bodies[i].transform = m
+            }
+        }
+    }
+
+    /// Apply `preInstallTargetTransform * widget.transform` to the target body
+    /// so the user sees their drag reflected on the actual geometry.
+    private func applyTargetTransform() {
+        guard let context, let id = context.bodyID(for: target) else { return }
+        if let i = context.bodies.firstIndex(where: { $0.id == id }) {
+            context.bodies[i].transform = preInstallTargetTransform * transform
+        }
+    }
+
     private func currentTranslation() -> SIMD3<Float> {
         extractTranslation(from: transform)
     }
+}
+
+private func translationMatrix(_ t: SIMD3<Float>) -> simd_float4x4 {
+    var m = matrix_identity_float4x4
+    m.columns.3 = SIMD4<Float>(t.x, t.y, t.z, 1)
+    return m
 }
 
 // MARK: - Free helpers
