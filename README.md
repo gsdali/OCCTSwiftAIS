@@ -4,7 +4,7 @@
 
 High-level Application Interactive Services for the OCCTSwift / OCCTSwiftViewport stack — selection-from-topology, manipulator widgets, dimension annotations, standard scene objects.
 
-> Current: **v0.1.0** — body + face selection-from-topology with cheap-route highlight overlay. See [SPEC.md](SPEC.md) for the full v0.x → v1.0 trajectory and [docs/CHANGELOG.md](docs/CHANGELOG.md) for what's in each release.
+> Current: **v0.3.0** — body + face + edge + vertex selection-from-topology, translate + rotate manipulator widgets with `.attachManipulator(_:)` SwiftUI integration, and standard scene objects (Trihedron / WorkPlane / Axis / PointCloud). See [SPEC.md](SPEC.md) for the full v0.x → v1.0 trajectory and [docs/CHANGELOG.md](docs/CHANGELOG.md) for what's in each release.
 
 ## Usage
 

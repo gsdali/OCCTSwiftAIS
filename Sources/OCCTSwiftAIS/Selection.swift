@@ -43,4 +43,14 @@ public struct Selection: Hashable, Sendable {
             return Edge(edgeShape)
         }
     }
+
+    /// World-space positions of any `.vertex(...)` entries. Order is unspecified.
+    /// Returns vertex coordinates rather than a rich type — OCCTSwift exposes
+    /// vertices as positional `SIMD3<Double>` values, not a `Vertex` class.
+    public var vertices: [SIMD3<Double>] {
+        subshapes.compactMap { sub in
+            guard case .vertex(let obj, let idx) = sub else { return nil }
+            return obj.shape.vertex(at: idx)
+        }
+    }
 }

@@ -17,10 +17,11 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // Brings in OCCTSwift and OCCTSwiftViewport transitively.
-        // 0.3.0 transitively pins OCCTSwiftViewport ≥ 0.52.0, where RenderLayer /
-        // PickLayer / per-body transform landed (manipulator widget needs them).
-        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "0.3.0"),
+        // Brings in OCCTSwift and OCCTSwiftViewport transitively. SPM resolves
+        // the highest compatible Viewport — which on 0.3.0 ships pulls 0.55.0
+        // (PrimitiveKind / edge / vertex pick layers, needed by AIS v0.3.0
+        // edge/vertex selection).
+        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "0.4.0"),
     ],
     targets: [
         .target(
