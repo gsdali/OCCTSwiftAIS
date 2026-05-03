@@ -18,7 +18,9 @@ let package = Package(
     ],
     dependencies: [
         // Brings in OCCTSwift and OCCTSwiftViewport transitively.
-        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "0.1.0"),
+        // 0.3.0 transitively pins OCCTSwiftViewport ≥ 0.52.0, where RenderLayer /
+        // PickLayer / per-body transform landed (manipulator widget needs them).
+        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "0.3.0"),
     ],
     targets: [
         .target(

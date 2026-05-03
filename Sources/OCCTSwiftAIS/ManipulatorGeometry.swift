@@ -64,7 +64,9 @@ enum ManipulatorGeometry {
             faceIndices: [],
             color: color,
             roughness: 0.3,
-            metallic: 0.05
+            metallic: 0.05,
+            renderLayer: .overlay,
+            pickLayer: .widget
         )
     }
 
