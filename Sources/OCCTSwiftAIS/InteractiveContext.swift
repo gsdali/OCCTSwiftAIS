@@ -104,6 +104,10 @@ public final class InteractiveContext: ObservableObject {
 
         if var body {
             body.isVisible = style.visible
+            // Workaround for OCCTSwiftTools#8 — populate edge / vertex picking
+            // arrays here so v0.55.0+ renderer can fire .edge / .vertex picks.
+            // Once Tools populates these directly the workaround can drop.
+            populateEdgeVertexPickArrays(body: &body, shape: shape, metadata: metadata)
             bodies.append(body)
         }
 
@@ -351,6 +355,17 @@ public final class InteractiveContext: ObservableObject {
     }
 
     private func resolveSubShape(from result: PickResult, entry: Entry) -> SubShape? {
+        switch result.kind {
+        case .face:
+            return resolveFaceSubShape(from: result, entry: entry)
+        case .edge:
+            return resolveEdgeSubShape(from: result, entry: entry)
+        case .vertex:
+            return resolveVertexSubShape(from: result, entry: entry)
+        }
+    }
+
+    private func resolveFaceSubShape(from result: PickResult, entry: Entry) -> SubShape? {
         if selectionMode.contains(.face),
            let metadata = entry.metadata,
            result.triangleIndex >= 0,
@@ -364,5 +379,53 @@ public final class InteractiveContext: ObservableObject {
             return .body(entry.object)
         }
         return nil
+    }
+
+    private func resolveEdgeSubShape(from result: PickResult, entry: Entry) -> SubShape? {
+        guard selectionMode.contains(.edge) else { return nil }
+        guard let body = bodies.first(where: { $0.id == entry.bodyID }) else { return nil }
+        guard result.triangleIndex >= 0,
+              result.triangleIndex < body.edgeIndices.count else { return nil }
+        let edgeIdx = Int(body.edgeIndices[result.triangleIndex])
+        guard edgeIdx >= 0 else { return nil }
+        return .edge(entry.object, edgeIndex: edgeIdx)
+    }
+
+    private func resolveVertexSubShape(from result: PickResult, entry: Entry) -> SubShape? {
+        guard selectionMode.contains(.vertex) else { return nil }
+        guard let body = bodies.first(where: { $0.id == entry.bodyID }) else { return nil }
+        guard result.triangleIndex >= 0,
+              result.triangleIndex < body.vertexIndices.count else { return nil }
+        let vIdx = Int(body.vertexIndices[result.triangleIndex])
+        guard vIdx >= 0 else { return nil }
+        return .vertex(entry.object, vertexIndex: vIdx)
+    }
+
+    /// Populate `body.edgeIndices` / `body.vertices` / `body.vertexIndices`
+    /// from the metadata's edge polylines and the source shape's vertex
+    /// sub-shapes. Workaround for OCCTSwiftTools#8 — once Tools populates
+    /// these arrays directly during `shapeToBodyAndMetadata`, this helper
+    /// becomes a no-op (we early-out when the arrays are already set).
+    private func populateEdgeVertexPickArrays(
+        body: inout ViewportBody,
+        shape: Shape,
+        metadata: CADBodyMetadata?
+    ) {
+        if body.edgeIndices.isEmpty, let metadata {
+            var flat: [Int32] = []
+            flat.reserveCapacity(metadata.edgePolylines.reduce(0) { $0 + max($1.points.count - 1, 0) })
+            for poly in metadata.edgePolylines {
+                let segs = max(poly.points.count - 1, 0)
+                if segs > 0 {
+                    flat.append(contentsOf: Array(repeating: Int32(poly.edgeIndex), count: segs))
+                }
+            }
+            body.edgeIndices = flat
+        }
+        if body.vertices.isEmpty {
+            let sourceVerts = shape.vertices()
+            body.vertices = sourceVerts.map { SIMD3<Float>(Float($0.x), Float($0.y), Float($0.z)) }
+            body.vertexIndices = (0..<sourceVerts.count).map { Int32($0) }
+        }
     }
 }

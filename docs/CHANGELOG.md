@@ -2,6 +2,29 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.3.0 — 2026-05-03
+
+Edge and vertex selection-from-topology — the second half of the v0.3 SPEC milestone (rotate manipulator already shipped in v0.2.2). Closes the headline "selection-from-topology" feature: face / edge / vertex picks from the GPU all round-trip to OCCTSwift handles.
+
+**Behaviour:**
+
+- `InteractiveContext.handlePick` dispatches on `PickResult.kind` from [OCCTSwiftViewport v0.55.0](https://github.com/gsdali/OCCTSwiftViewport/releases/tag/v0.55.0):
+  - `.face` → `SubShape.face(obj, faceIndex:)` via `CADBodyMetadata.faceIndices` (unchanged behaviour).
+  - `.edge` → `SubShape.edge(obj, edgeIndex:)` via `body.edgeIndices[primIdx]`.
+  - `.vertex` → `SubShape.vertex(obj, vertexIndex:)` via `body.vertexIndices[primIdx]`.
+- Picks of a kind not in `selectionMode` are ignored.
+- `display(_:)` now populates `body.edgeIndices` (flattened from `metadata.edgePolylines`) and `body.vertices` / `body.vertexIndices` (positional, from `shape.vertices()`) so the renderer's edge / vertex pick passes have data to work with. **Workaround for** [OCCTSwiftTools#8](https://github.com/gsdali/OCCTSwiftTools/issues/8) — once Tools populates these directly during `shapeToBodyAndMetadata`, the AIS-side helper becomes a no-op (it early-outs when the arrays are already set).
+
+**New public surface:**
+
+- `Selection.vertices: [SIMD3<Double>]` — world-space positions of any `.vertex(...)` entries. Returns positions rather than a rich type because OCCTSwift exposes vertices as `SIMD3<Double>` values (no `Vertex` class).
+
+**Dependencies:** floor raised to `OCCTSwiftTools` ≥ 0.4.0 (transitively `OCCTSwiftViewport` ≥ 0.55.0, `OCCTSwift` ≥ 0.168.0).
+
+**Tests:** 12 new in `EdgeVertexSelection` covering display populating edge / vertex pick arrays; positional vertex indexing; `handlePick` dispatching face / edge / vertex correctly; mode-mismatched picks ignored; out-of-range primitive ignored; `Selection.vertices` filtering only `.vertex` cases and resolving to source positions; multi-mode replacement on subsequent picks of different kinds. Total: **107 across 9 suites**.
+
+**SPEC milestone status:** `v0.3.0` per SPEC.md §"Sequencing" called for "Manipulator widget (rotate) + edge / vertex selection". Rotate shipped in v0.2.2; this release ships edge/vertex. v0.4.0 onward picks up linear / angular / radial dimensions.
+
 ## v0.2.4 — 2026-05-03
 
 Standard scene objects per SPEC.md §"Standard objects". Each emits one or more `ViewportBody`s via `makeBodies()` that the caller appends to their `InteractiveContext.bodies`. They aren't selectable — they're visual aids only.
