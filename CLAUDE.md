@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Read SPEC.md first
 
-This repo is currently a **scaffold** — `Sources/OCCTSwiftAIS/` and `Tests/OCCTSwiftAISTests/` contain only `.gitkeep`. The implementation brief lives in [`SPEC.md`](SPEC.md) and is the source of truth for:
+[`SPEC.md`](SPEC.md) is the source of truth for the v0.x → v1.0 trajectory; [`docs/CHANGELOG.md`](docs/CHANGELOG.md) is what's actually shipped. As of v0.1.0: `InteractiveContext` with body + face selection-from-topology and cheap-route highlight overlay. Coming releases per SPEC.md §"Sequencing": v0.2 translate manipulator, v0.3 rotate manipulator + edge/vertex selection, v0.4 linear dimensions, v0.5 angular/radial dimensions, v0.6+ standard scene objects + renderer-backed highlight + history-based selection remap.
+
+`SPEC.md` defines:
 
 - Public API target shape (`InteractiveContext`, `SubShape`, `Selection`, `ManipulatorWidget`, `Dimension`, `Trihedron`/`WorkPlane`/`Axis`/`PointCloudPresentation`)
 - Implementation guidance for the load-bearing pieces (selection-from-topology, hover/highlight rendering, manipulator math, dimensions)
