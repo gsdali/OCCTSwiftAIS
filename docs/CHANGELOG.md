@@ -2,6 +2,15 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.6.3 — 2026-05-03
+
+Documentation polish. No code or test changes.
+
+- `README.md` rewritten as a compact landing — features-at-a-glance, install, 30-second example, link to the new walkthrough. Architecture / platforms / license sections kept; install snippet bumped to `from: "0.6.3"`.
+- New `docs/getting-started.md` — walkthrough exercising the full public API in narrative order: `InteractiveContext` setup, `display`, selection modes / `Selection` derived accessors, presentation styles, translate + rotate manipulators, `.attachManipulator(_:)` SwiftUI integration, dimensions (linear / angular / radial), standard scene objects, `remap`, and a "synthesise a `PickResult` for tests" recipe. Each snippet is checked against the v0.6.2 source tree (every public symbol it references exists today).
+
+Drop-in upgrade — no behaviour change.
+
 ## v0.6.2 — 2026-05-03
 
 Drops the `populateEdgeVertexPickArrays` workaround — [OCCTSwiftTools v0.5.0](https://github.com/gsdali/OCCTSwiftTools/releases/tag/v0.5.0) now populates `body.vertices` / `vertexIndices` / `edgeIndices` on the source-shape convention, so AIS no longer has to override Tools' output. Closes [OCCTSwiftTools#10](https://github.com/gsdali/OCCTSwiftTools/issues/10).
