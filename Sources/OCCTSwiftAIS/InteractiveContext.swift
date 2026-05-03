@@ -105,10 +105,6 @@ public final class InteractiveContext: ObservableObject {
 
         if var body {
             body.isVisible = style.visible
-            // Workaround for OCCTSwiftTools#8 — populate edge / vertex picking
-            // arrays here so v0.55.0+ renderer can fire .edge / .vertex picks.
-            // Once Tools populates these directly the workaround can drop.
-            populateEdgeVertexPickArrays(body: &body, shape: shape, metadata: metadata)
             bodies.append(body)
         }
 
@@ -331,38 +327,4 @@ public final class InteractiveContext: ObservableObject {
         return .vertex(entry.object, vertexIndex: vIdx)
     }
 
-    /// Populate `body.edgeIndices` / `body.vertices` / `body.vertexIndices`
-    /// so the renderer's edge / vertex pick pipelines fire **and** so the
-    /// pick primitive index round-trips to a `TopoDS_Vertex` on the source
-    /// shape via `Selection.vertices`.
-    ///
-    /// `OCCTSwiftTools` v0.4.1 also populates `edgeIndices` and `vertices`
-    /// during `shapeToBodyAndMetadata`, but its `vertices` are the
-    /// deduplicated polyline endpoints (not the source TopoDS vertices)
-    /// and it leaves `vertexIndices` empty — which would make a vertex
-    /// pick's `primitiveIndex` an opaque position into the polyline-endpoint
-    /// list, not a source-vertex index. AIS overrides Tools' `vertices` /
-    /// `vertexIndices` with `shape.vertices()` so picks land on real
-    /// `TopoDS_Vertex` sub-shapes. `edgeIndices` we accept from Tools when
-    /// they're already populated; otherwise we flatten metadata ourselves.
-    private func populateEdgeVertexPickArrays(
-        body: inout ViewportBody,
-        shape: Shape,
-        metadata: CADBodyMetadata?
-    ) {
-        if body.edgeIndices.isEmpty, let metadata {
-            var flat: [Int32] = []
-            flat.reserveCapacity(metadata.edgePolylines.reduce(0) { $0 + max($1.points.count - 1, 0) })
-            for poly in metadata.edgePolylines {
-                let segs = max(poly.points.count - 1, 0)
-                if segs > 0 {
-                    flat.append(contentsOf: Array(repeating: Int32(poly.edgeIndex), count: segs))
-                }
-            }
-            body.edgeIndices = flat
-        }
-        let sourceVerts = shape.vertices()
-        body.vertices = sourceVerts.map { SIMD3<Float>(Float($0.x), Float($0.y), Float($0.z)) }
-        body.vertexIndices = (0..<sourceVerts.count).map { Int32($0) }
-    }
 }
