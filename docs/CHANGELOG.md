@@ -2,6 +2,44 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.6.1 — 2026-05-03
+
+Adopts the renderer-backed per-triangle highlight overlay shipped in [OCCTSwiftViewport v0.55.1](https://github.com/gsdali/OCCTSwiftViewport/releases/tag/v0.55.1) (closes [#25](https://github.com/gsdali/OCCTSwiftViewport/issues/25)). The v0.1 cheap-route normal-offset overlay is gone — `InteractiveContext.updateSelectionVisuals` now writes per-triangle `TriangleStyle` entries directly into the source body's `triangleStyles` array.
+
+**Behaviour changes (no public API change):**
+
+- Face-level selection no longer spawns `ais.overlay.sel.<UUID>` overlay bodies. The renderer composites the highlight in a dedicated pass after the shaded geometry pass with `depthCompareFunction = .lessEqual` — no more silhouette flicker, no more body-count blow-up on multi-face selection.
+- `ctx.bodies` count after a face selection is now N (just source bodies), not 2N (source + overlay) as in v0.1 → v0.6. Consumers asserting body counts will see this drop.
+- `setHighlightStyle` rewrites the `triangleStyles` array on the affected bodies directly.
+- `display()` no longer needs the "keep overlays trailing" pass, since there are no overlay bodies to order.
+
+**Removed:**
+
+- `InteractiveContext.makeFaceOverlay(...)` and `computeOverlayEpsilon(...)` static helpers.
+- `overlayBodyIDs: Set<String>` private state on `InteractiveContext`.
+
+**Tools v0.4.1 coordination:**
+
+[OCCTSwiftTools v0.4.1](https://github.com/gsdali/OCCTSwiftTools/releases/tag/v0.4.1) (which dropped between v0.6.0 and this release) populates `body.vertices` from polyline endpoints and leaves `vertexIndices` empty. AIS overrides both with `shape.vertices()` source-vertex positions so a vertex pick's `primitiveIndex` round-trips to a `TopoDS_Vertex` via `Selection.vertices` (`shape.vertex(at: idx)`). Filed as [OCCTSwiftTools#10](https://github.com/gsdali/OCCTSwiftTools/issues/10) — once converged, the AIS-side override drops.
+
+**Tests:**
+
+`HighlightOverlay` suite renamed to `FaceHighlight` and rewritten to assert against `body.triangleStyles` instead of overlay-body presence:
+
+- `t_faceSelection_writesNonZeroAlphaForMatchingTriangles` — every highlighted triangle's `faceIndices[idx]` matches the selected face.
+- `t_faceSelection_doesNotProduceSeparateOverlayBody` — `ctx.bodies.count == 1` after selection; no `ais.overlay.*` ids exist.
+- `t_highlightColor_isSelectionColorWithFullAlpha` — color in `triangleStyles` matches `highlightStyle.selectionColor` with alpha 1.
+- `t_setHighlightStyle_updatesLiveStyles` — color rewrites in place after a style change.
+- `t_clearSelection_clearsTriangleStyles` — clears the array.
+- `t_multiFaceSelection_unionsTrianglesOnSameBody` — multiple selected faces produce highlighted triangles for each.
+- `t_facesAcrossTwoBodies_writeStylesOnEach` — independent bodies each get their own styles.
+- `t_displayAfterSelection_doesNotResurrectOverlayBodies` — adding new shapes after a selection doesn't spawn overlay bodies.
+- Body-level highlight tests unchanged (`viewport.selectedBodyIDs` path).
+
+Total: **146 across 12 suites** (test count unchanged; HighlightOverlay tests rewritten in place rather than added).
+
+**Dependencies:** transitively `OCCTSwiftViewport` ≥ 0.55.1 via `OCCTSwiftTools` ≥ 0.4.0; SPM resolves to current latest.
+
 ## v0.6.0 — 2026-05-03
 
 History-based selection remap per SPEC.md §"Selection survival across mutation". After a target shape is modified — boolean ops, fillets, etc. — `InteractiveContext.remap(_:using:rebindingTo:)` translates an old `Selection`'s sub-shape indices to the new shape's indices via OCCTSwift's `TopologyGraph` history records.

@@ -48,10 +48,6 @@ public final class InteractiveContext: ObservableObject {
 
     public var highlightStyle: HighlightStyle = .default
 
-    /// Body IDs of the overlay bodies currently injected into `bodies`.
-    /// Tracked so we can replace them in-place on each selection update.
-    private var overlayBodyIDs: Set<String> = []
-
     /// Dimensions added via `add(_:)`. Strongly held so the dimension lives
     /// as long as it's displayed; weak refs would let user-discarded
     /// dimensions vanish from the scene.
@@ -120,11 +116,6 @@ public final class InteractiveContext: ObservableObject {
             object: object, bodyID: bodyID, metadata: metadata, style: style
         )
         entriesByBodyID[bodyID] = object.id
-
-        // Keep overlays trailing so newly-displayed bodies don't render in front of them.
-        if !overlayBodyIDs.isEmpty {
-            updateSelectionVisuals()
-        }
         return object
     }
 
@@ -215,10 +206,12 @@ public final class InteractiveContext: ObservableObject {
         bodies.removeAll { predicate($0.id) }
     }
 
-    // MARK: - Highlight overlay (cheap route — sub-mesh + normal offset)
+    // MARK: - Highlight overlay (renderer-backed, OCCTSwiftViewport ≥ 0.55.1)
 
+    /// Body-level selection → `viewport.selectedBodyIDs`. Face-level selection
+    /// → per-triangle styles on the source body's `triangleStyles`. No overlay
+    /// bodies, no normal-offset push.
     private func updateSelectionVisuals() {
-        // Body-level selection → renderer's built-in body highlight set.
         let selectedBodyIDs: Set<String> = Set(
             selection.subshapes.compactMap { sub -> String? in
                 guard case .body(let obj) = sub else { return nil }
@@ -227,113 +220,43 @@ public final class InteractiveContext: ObservableObject {
         )
         viewport.selectedBodyIDs = selectedBodyIDs
 
-        // Face-level selection → overlay sub-mesh per source body.
         var facesByObjectID: [UUID: Set<Int>] = [:]
         for sub in selection.subshapes {
             guard case .face(let obj, let idx) = sub else { continue }
             facesByObjectID[obj.id, default: []].insert(idx)
         }
 
-        // Drop existing overlays before rebuilding.
-        if !overlayBodyIDs.isEmpty {
-            bodies.removeAll { overlayBodyIDs.contains($0.id) }
-            overlayBodyIDs.removeAll()
-        }
-
         let highlightRGBA = SIMD4<Float>(highlightStyle.selectionColor, 1.0)
-        for (objectID, faceIndices) in facesByObjectID {
-            guard let entry = entriesByID[objectID],
-                  let metadata = entry.metadata,
-                  let sourceBody = bodies.first(where: { $0.id == entry.bodyID }) else { continue }
-            let overlayID = "ais.overlay.sel.\(objectID.uuidString)"
-            if let overlay = Self.makeFaceOverlay(
-                sourceBody: sourceBody,
-                metadata: metadata,
-                faceIndices: faceIndices,
-                overlayID: overlayID,
-                color: highlightRGBA
-            ) {
-                bodies.append(overlay)
-                overlayBodyIDs.insert(overlayID)
+
+        for (objectID, entry) in entriesByID {
+            guard let bodyIdx = bodies.firstIndex(where: { $0.id == entry.bodyID }) else {
+                continue
             }
-        }
-    }
-
-    /// Builds a sub-mesh from the source body containing only the triangles whose
-    /// `faceIndex` is in `faceIndices`. Vertices are pushed along their normal by a
-    /// bbox-relative epsilon so the overlay wins the depth test against the source.
-    private static func makeFaceOverlay(
-        sourceBody: ViewportBody,
-        metadata: CADBodyMetadata,
-        faceIndices: Set<Int>,
-        overlayID: String,
-        color: SIMD4<Float>
-    ) -> ViewportBody? {
-        let stride = 6
-        let triangleCount = sourceBody.indices.count / 3
-        guard triangleCount > 0,
-              metadata.faceIndices.count == triangleCount else { return nil }
-
-        let epsilon = computeOverlayEpsilon(vertexData: sourceBody.vertexData, stride: stride)
-
-        var newVertexData: [Float] = []
-        var newIndices: [UInt32] = []
-        var newFaceIndices: [Int32] = []
-        var localIndex: [UInt32: UInt32] = [:]
-
-        for triIdx in 0..<triangleCount {
-            let faceIdx = Int(metadata.faceIndices[triIdx])
-            guard faceIndices.contains(faceIdx) else { continue }
-
-            for k in 0..<3 {
-                let srcIdx = sourceBody.indices[triIdx * 3 + k]
-                let local: UInt32
-                if let existing = localIndex[srcIdx] {
-                    local = existing
-                } else {
-                    local = UInt32(newVertexData.count / stride)
-                    let base = Int(srcIdx) * stride
-                    let nx = sourceBody.vertexData[base + 3]
-                    let ny = sourceBody.vertexData[base + 4]
-                    let nz = sourceBody.vertexData[base + 5]
-                    newVertexData.append(contentsOf: [
-                        sourceBody.vertexData[base]     + nx * epsilon,
-                        sourceBody.vertexData[base + 1] + ny * epsilon,
-                        sourceBody.vertexData[base + 2] + nz * epsilon,
-                        nx, ny, nz
-                    ])
-                    localIndex[srcIdx] = local
+            let triangleCount = bodies[bodyIdx].indices.count / 3
+            guard triangleCount > 0, let metadata = entry.metadata,
+                  metadata.faceIndices.count == triangleCount else {
+                if !bodies[bodyIdx].triangleStyles.isEmpty {
+                    bodies[bodyIdx].triangleStyles = []
                 }
-                newIndices.append(local)
+                continue
             }
-            newFaceIndices.append(metadata.faceIndices[triIdx])
+            let selectedFaces = facesByObjectID[objectID] ?? []
+            if selectedFaces.isEmpty {
+                if !bodies[bodyIdx].triangleStyles.isEmpty {
+                    bodies[bodyIdx].triangleStyles = []
+                }
+            } else {
+                let highlight = TriangleStyle(color: highlightRGBA)
+                var styles = Array(repeating: TriangleStyle.none, count: triangleCount)
+                for triIdx in 0..<triangleCount {
+                    let faceIdx = Int(metadata.faceIndices[triIdx])
+                    if selectedFaces.contains(faceIdx) {
+                        styles[triIdx] = highlight
+                    }
+                }
+                bodies[bodyIdx].triangleStyles = styles
+            }
         }
-
-        guard !newIndices.isEmpty else { return nil }
-
-        return ViewportBody(
-            id: overlayID,
-            vertexData: newVertexData,
-            indices: newIndices,
-            edges: [],
-            faceIndices: newFaceIndices,
-            color: color
-        )
-    }
-
-    private static func computeOverlayEpsilon(vertexData: [Float], stride: Int) -> Float {
-        guard vertexData.count >= stride else { return 1e-3 }
-        var minP = SIMD3<Float>(repeating:  .infinity)
-        var maxP = SIMD3<Float>(repeating: -.infinity)
-        var i = 0
-        while i + 2 < vertexData.count {
-            let p = SIMD3<Float>(vertexData[i], vertexData[i + 1], vertexData[i + 2])
-            minP = simd_min(minP, p)
-            maxP = simd_max(maxP, p)
-            i += stride
-        }
-        let diag = simd_distance(minP, maxP)
-        return max(diag * 0.0005, 1e-5)
     }
 
     // MARK: - Pick / hover wiring
@@ -409,10 +332,19 @@ public final class InteractiveContext: ObservableObject {
     }
 
     /// Populate `body.edgeIndices` / `body.vertices` / `body.vertexIndices`
-    /// from the metadata's edge polylines and the source shape's vertex
-    /// sub-shapes. Workaround for OCCTSwiftTools#8 — once Tools populates
-    /// these arrays directly during `shapeToBodyAndMetadata`, this helper
-    /// becomes a no-op (we early-out when the arrays are already set).
+    /// so the renderer's edge / vertex pick pipelines fire **and** so the
+    /// pick primitive index round-trips to a `TopoDS_Vertex` on the source
+    /// shape via `Selection.vertices`.
+    ///
+    /// `OCCTSwiftTools` v0.4.1 also populates `edgeIndices` and `vertices`
+    /// during `shapeToBodyAndMetadata`, but its `vertices` are the
+    /// deduplicated polyline endpoints (not the source TopoDS vertices)
+    /// and it leaves `vertexIndices` empty — which would make a vertex
+    /// pick's `primitiveIndex` an opaque position into the polyline-endpoint
+    /// list, not a source-vertex index. AIS overrides Tools' `vertices` /
+    /// `vertexIndices` with `shape.vertices()` so picks land on real
+    /// `TopoDS_Vertex` sub-shapes. `edgeIndices` we accept from Tools when
+    /// they're already populated; otherwise we flatten metadata ourselves.
     private func populateEdgeVertexPickArrays(
         body: inout ViewportBody,
         shape: Shape,
@@ -429,10 +361,8 @@ public final class InteractiveContext: ObservableObject {
             }
             body.edgeIndices = flat
         }
-        if body.vertices.isEmpty {
-            let sourceVerts = shape.vertices()
-            body.vertices = sourceVerts.map { SIMD3<Float>(Float($0.x), Float($0.y), Float($0.z)) }
-            body.vertexIndices = (0..<sourceVerts.count).map { Int32($0) }
-        }
+        let sourceVerts = shape.vertices()
+        body.vertices = sourceVerts.map { SIMD3<Float>(Float($0.x), Float($0.y), Float($0.z)) }
+        body.vertexIndices = (0..<sourceVerts.count).map { Int32($0) }
     }
 }
