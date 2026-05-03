@@ -2,6 +2,30 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.4.0 — 2026-05-03
+
+Linear dimensions per SPEC.md §"Dimensions". `LinearDimension(from:to:plane:?)` resolves topology-aware anchors (vertex position / edge midpoint / face bbox center / body bbox center) and reports a labeled distance. Rendering reuses OCCTSwiftViewport's existing `MeasurementOverlay` (SwiftUI Canvas) — **no renderer-side changes needed**.
+
+**New public surface:**
+
+- `protocol Dimension: AnyObject, Sendable` — `id`, `label`, `anchorPoints`, `viewportMeasurement`. `AngularDimension` and `RadialDimension` will conform in v0.5.
+- `final class LinearDimension: Dimension` — `init(from:to:plane:customLabel:id:)`. Optional `WorkPlane` projects both anchors orthogonally onto the plane before measuring (Cauchy-Schwarz: distance can only shrink). `customLabel` overrides the formatted distance.
+- `LinearDimension.distance: Float` — straight-line (or in-plane) distance.
+- `InteractiveContext.add<D: Dimension>(_:) -> D` (idempotent for the same instance), `remove(_ dimension: any Dimension)`, `var dimensions: [any Dimension]`, `refreshDimensionMeasurement(_:)` for re-fetch after anchors move.
+- `removeAll()` now also clears dimensions and `viewport.measurements`.
+
+**New internal:** `enum DimensionAnchor` — sub-shape → world point resolver (used by all `Dimension` types) + `project(_:onto:)` orthogonal-plane projection + `formatDistance(_:)` label formatter.
+
+**Implementation notes:**
+
+- Face anchors use `Face.bounds` bbox-center (constant time per face). Curved-face users wanting the area-weighted centroid can pass a custom anchor strategy in a future release; for axis-aligned faces the bbox center *is* the centroid.
+- Edge anchors use the segment midpoint between `Edge.endpoints`. Curved edges currently linearise; arc-length midpoint is a future refinement.
+- Body anchors use `Shape.bounds` center.
+
+**Tests:** 15 new in `LinearDimension`. Total: **122 across 10 suites**.
+
+**Dependencies:** unchanged from v0.3.0.
+
 ## v0.3.0 — 2026-05-03
 
 Edge and vertex selection-from-topology — the second half of the v0.3 SPEC milestone (rotate manipulator already shipped in v0.2.2). Closes the headline "selection-from-topology" feature: face / edge / vertex picks from the GPU all round-trip to OCCTSwift handles.
