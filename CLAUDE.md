@@ -57,7 +57,7 @@ These are **not** generic best practices — they are project rules cribbed verb
 - **`@Test func` names must not shadow API method names** used inside the test body. Prefix with `t_` or use a descriptive English name.
 - **License is LGPL 2.1** (matches OCCT). Don't relicense.
 - **Versioning is pre-1.0**, free to break. Tiny additive features → patch bump (`x.y.z+1`), not minor. New public surface → minor bump.
-- **Release pattern**: every shipped version commits + pushes + tags + creates a GitHub release. Release notes go in `docs/CHANGELOG.md` (does not yet exist; create when first release ships).
+- **Release pattern**: every shipped version goes on a `release/vX.Y.Z` branch → PR into `main` → merge → tag `vX.Y.Z` from `main` → push tag → `gh release create` with notes from `docs/CHANGELOG.md`. **Never `git push` directly to `main`** — both the local guardrail and (intended) GitHub branch protection block it. The PR title should be the same headline used in the CHANGELOG entry.
 - **`CODE_OF_CONDUCT.md`** is a short pointer to Contributor Covenant 2.1 — **never inline the full text** (Anthropic's content filter blocks it).
 - **`.spi.yml`** drives the SPI build matrix (Swift 6.0 / 6.1 / 6.2 / 6.3 + iOS); SPI submission is gated on v1.0.0.
 
