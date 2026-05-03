@@ -43,6 +43,18 @@ struct STEPStockIntegrationTests {
     }
 
     @Test(arguments: stockFixtures)
+    func t_stockHasNoCircularEdges(name: String) async throws {
+        // The CAM simulation's stock blanks are pure rectangular blocks; any
+        // circular edge would mean we're not looking at a raw stock.
+        let (_, shape) = try await loadStock(name)
+        for i in 0..<shape.edgeCount {
+            guard let edge = shape.edge(at: i) else { continue }
+            #expect(edge.isCircle == false,
+                    "\(name): stock edge \(i) shouldn't be circular (rectangular block)")
+        }
+    }
+
+    @Test(arguments: stockFixtures)
     func t_stockTopology_matchesRectangularBlock(name: String) async throws {
         let (_, shape) = try await loadStock(name)
         // 6mm stock = a rectangular block. Six faces, twelve edges, eight vertices.
@@ -251,6 +263,51 @@ struct STEPWIPIntegrationTests {
             dir = dir.deletingLastPathComponent()
         }
         return nil
+    }
+
+    /// Walk the WIP shape's edges and return the first `isCircle` index, if any.
+    private func firstCircularEdgeIndex(of shape: OCCTSwift.Shape) -> Int? {
+        for i in 0..<shape.edgeCount {
+            if let edge = shape.edge(at: i), edge.isCircle { return i }
+        }
+        return nil
+    }
+
+    @Test(arguments: wipFixtures)
+    func t_wipFile_hasCircularEdgesFromCutterPath(name: String) async throws {
+        guard let url = wipURL(name) else { return }
+        let result = try await CADFileLoader.load(from: url, format: .step)
+        let shape = try #require(result.shapes.first)
+        let circIdx = firstCircularEdgeIndex(of: shape)
+        #expect(circIdx != nil,
+                "\(name): WIP from a 6mm cutter simulation must have at least one circular edge")
+    }
+
+    @Test(arguments: wipFixtures)
+    func t_wipFile_radialDimensionOnCutterFootprint_resolves(name: String) async throws {
+        guard let url = wipURL(name) else { return }
+        let result = try await CADFileLoader.load(from: url, format: .step)
+        let shape = try #require(result.shapes.first)
+        guard let circIdx = firstCircularEdgeIndex(of: shape) else {
+            Issue.record("\(name): no circular edges to dimension")
+            return
+        }
+
+        let ctx = InteractiveContext(viewport: ViewportController())
+        let obj = ctx.display(shape)
+        let rad = RadialDimension(circularEdge: .edge(obj, edgeIndex: circIdx))
+        ctx.add(rad)
+
+        // Radius is finite and positive — the round-trip through
+        // `Edge.curve3D.circleProperties` produced a valid circle.
+        #expect(rad.radius.isFinite)
+        #expect(rad.radius > 0)
+        #expect(rad.label.hasPrefix("R"), "default radius label, got \(rad.label)")
+        // The viewport carries the measurement so the renderer will draw it.
+        if case .radius = ctx.viewport.measurements.first {
+        } else {
+            Issue.record("expected a .radius measurement on viewport.measurements")
+        }
     }
 
     @Test(arguments: wipFixtures)
