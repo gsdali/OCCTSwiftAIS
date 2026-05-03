@@ -2,11 +2,29 @@
 
 [![License](https://img.shields.io/badge/license-LGPL--2.1-blue)](LICENSE)
 
-High-level Application Interactive Services for the OCCTSwift / OCCTSwiftViewport stack — selection-from-topology, manipulator widgets, dimension annotations, standard scene objects.
+High-level **Application Interactive Services** for the OCCTSwift / OCCTSwiftViewport stack — selection-from-topology, manipulator widgets, dimension annotations, and standard scene objects, all in pure Swift.
 
-> Current: **v0.6.0** — body + face + edge + vertex selection-from-topology; translate + rotate manipulator widgets with `.attachManipulator(_:)` SwiftUI integration; linear / angular / radial dimensions; standard scene objects (Trihedron / WorkPlane / Axis / PointCloud); history-based selection remap across shape mutation. See [SPEC.md](SPEC.md) for the full v0.x → v1.0 trajectory and [docs/CHANGELOG.md](docs/CHANGELOG.md) for what's in each release.
+> Current: **v0.6.3**. The SPEC's stated v0.x feature surface is fully shipped; v1.0 waits on OCCT 8.0.0 and SPI submission. See [SPEC.md](SPEC.md) for the design brief and [docs/CHANGELOG.md](docs/CHANGELOG.md) for per-release notes.
 
-## Usage
+## What's in the box
+
+- **Selection-from-topology** — pick a body / face / edge / vertex; round-trip the GPU pick to a `TopoDS_Face` / `Edge` / `Vertex` handle on the source `Shape`. Body and face highlights composite via the renderer's per-triangle style buffer (no overlay-mesh flicker).
+- **Manipulator widgets** — translate and rotate gizmos with `snapTranslate` / `snapRotateDeg`, on the renderer's overlay layer (always-on-top), with native widget pick filtering. SwiftUI integration via `.attachManipulator(_:)`.
+- **Dimensions** — `LinearDimension`, `AngularDimension`, `RadialDimension`. Topology-aware anchors (vertex / edge midpoint / face bbox center / circular-edge center) feed into OCCTSwiftViewport's existing `MeasurementOverlay` for leader lines + billboarded label.
+- **Standard scene objects** — `Trihedron`, `WorkPlane`, `Axis`, `PointCloudPresentation`.
+- **Selection survival** — `InteractiveContext.remap(_:using:rebindingTo:)` translates a pre-mutation `Selection` to the post-mutation shape's indices via OCCTSwift's history records.
+
+[**→ Getting started**](docs/getting-started.md) walks through wiring all of this into a SwiftUI app.
+
+## Installation
+
+```swift
+.package(url: "https://github.com/gsdali/OCCTSwiftAIS.git", from: "0.6.3"),
+```
+
+`OCCTSwiftAIS` transitively pulls `OCCTSwiftTools`, `OCCTSwiftViewport`, and `OCCTSwift`.
+
+## 30-second example
 
 ```swift
 import SwiftUI
@@ -28,14 +46,14 @@ struct CADView: View {
             }
             .onChange(of: ais.selection) { _, sel in
                 for face in sel.faces {
-                    print("Selected face area:", face.area())
+                    print("selected face area:", face.area())
                 }
             }
     }
 }
 ```
 
-## Architecture position
+## Architecture
 
 ```
 Application
@@ -48,17 +66,7 @@ OCCTSwift  OCCTSwiftViewport
 (B-Rep)    (Metal)
 ```
 
-## Why not a TKMetal port?
-
-Because porting OCCT's `TKV3d` / `TKService` / `TKOpenGl` toolkits to Metal is a multi-year project that mostly duplicates work [OCCTSwiftViewport](https://github.com/gsdali/OCCTSwiftViewport) already does cleanly in native Metal. OCCTSwiftAIS adds the high-value scene-management semantics that an OCCT-style API needs (selection-on-topology, manipulators, dimensions) as a thin Swift layer on top — keeping all visualization OFF in OCCTSwift's xcframework.
-
-Full reasoning: [`OCCTSwift/docs/visualization-research.md`](https://github.com/gsdali/OCCTSwift/blob/main/docs/visualization-research.md).
-
-## Installation
-
-```swift
-.package(url: "https://github.com/gsdali/OCCTSwiftAIS.git", from: "0.1.0"),
-```
+OCCTSwiftAIS adds **scene-management semantics** an OCCT-style API expects (selection-on-topology, manipulators, dimensions) as a thin Swift layer on top of OCCTSwiftViewport's native Metal renderer. It is **not** a port of OCCT's `TKV3d` / `TKService` / `TKOpenGl` toolkits — see [`OCCTSwift/docs/visualization-research.md`](https://github.com/gsdali/OCCTSwift/blob/main/docs/visualization-research.md) for why.
 
 ## Supported platforms
 
@@ -70,6 +78,14 @@ Full reasoning: [`OCCTSwift/docs/visualization-research.md`](https://github.com/
 | tvOS 18+ device + simulator arm64 | Supported |
 
 Same floor as OCCTSwiftViewport.
+
+## Documentation
+
+- [Getting started](docs/getting-started.md) — selection, manipulators, dimensions, standard objects in one walkthrough.
+- [SPEC.md](SPEC.md) — design rationale and the v0.x → v1.0 trajectory.
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) — what shipped in each release.
+
+Sibling repos: [OCCTSwift](https://github.com/gsdali/OCCTSwift) (B-Rep kernel), [OCCTSwiftViewport](https://github.com/gsdali/OCCTSwiftViewport) (Metal renderer), [OCCTSwiftTools](https://github.com/gsdali/OCCTSwiftTools) (Shape ↔ ViewportBody bridge).
 
 ## License
 
