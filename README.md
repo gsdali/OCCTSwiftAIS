@@ -4,9 +4,9 @@
 
 High-level Application Interactive Services for the OCCTSwift / OCCTSwiftViewport stack — selection-from-topology, manipulator widgets, dimension annotations, standard scene objects.
 
-> Status: **scaffolding**. No implementation yet — see [SPEC.md](SPEC.md) for the brief that describes what to build, in what order, and why.
+> Current: **v0.1.0** — body + face selection-from-topology with cheap-route highlight overlay. See [SPEC.md](SPEC.md) for the full v0.x → v1.0 trajectory and [docs/CHANGELOG.md](docs/CHANGELOG.md) for what's in each release.
 
-## What it does (target API)
+## Usage
 
 ```swift
 import SwiftUI
@@ -16,25 +16,19 @@ import OCCTSwiftAIS
 
 @MainActor
 struct CADView: View {
-    @StateObject var viewport = ViewportController()
-    @StateObject var ais: InteractiveContext
-
-    init() {
-        let vc = ViewportController()
-        _viewport = StateObject(wrappedValue: vc)
-        _ais = StateObject(wrappedValue: InteractiveContext(viewport: vc))
-    }
+    @StateObject private var ais = InteractiveContext(viewport: ViewportController())
 
     var body: some View {
-        MetalViewportView(controller: viewport)
+        MetalViewportView(controller: ais.viewport, bodies: $ais.bodies)
             .onAppear {
-                let part = Shape.box(width: 10, height: 5, depth: 3)!
-                ais.display(part)
-                ais.selectionMode = [.face, .edge]
+                if let part = Shape.box(width: 10, height: 5, depth: 3) {
+                    ais.display(part)
+                }
+                ais.selectionMode = [.face]
             }
             .onChange(of: ais.selection) { _, sel in
                 for face in sel.faces {
-                    print("Selected face area:", face.area)
+                    print("Selected face area:", face.area())
                 }
             }
     }
@@ -70,16 +64,12 @@ Full reasoning: [`OCCTSwift/docs/visualization-research.md`](https://github.com/
 
 | Platform | Status |
 |---|---|
-| macOS 15+ arm64 | Planned |
-| iOS 18+ device + simulator arm64 | Planned |
-| visionOS 1+ device + simulator arm64 | Planned |
-| tvOS 18+ device + simulator arm64 | Planned |
+| macOS 15+ arm64 | Supported |
+| iOS 18+ device + simulator arm64 | Supported |
+| visionOS 1+ device + simulator arm64 | Supported |
+| tvOS 18+ device + simulator arm64 | Supported |
 
 Same floor as OCCTSwiftViewport.
-
-## Status
-
-This repo is in **bootstrap**. Read [SPEC.md](SPEC.md) for the implementation brief.
 
 ## License
 
