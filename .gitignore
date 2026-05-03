@@ -10,3 +10,8 @@ DerivedData/
 .build/
 .swiftpm/
 Package.resolved
+
+# Local-only large STEP fixtures (committed stock files live in
+# Tests/OCCTSwiftAISTests/Fixtures/; large WIP files stay here and
+# tests for them skip-on-missing).
+test_files/
