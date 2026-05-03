@@ -17,11 +17,12 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // Brings in OCCTSwift and OCCTSwiftViewport transitively. SPM resolves
-        // the highest compatible Viewport — which on 0.3.0 ships pulls 0.55.0
-        // (PrimitiveKind / edge / vertex pick layers, needed by AIS v0.3.0
-        // edge/vertex selection).
-        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "0.4.0"),
+        // Brings in OCCTSwift and OCCTSwiftViewport transitively. Tools 0.5.0+
+        // populates `body.vertices` / `vertexIndices` / `edgeIndices` on the
+        // source-shape convention, so AIS no longer has to override them — see
+        // OCCTSwiftTools#10. Transitively resolves OCCTSwiftViewport ≥ 0.55.1
+        // (renderer-backed `body.triangleStyles` highlight overlay).
+        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "0.5.0"),
     ],
     targets: [
         .target(

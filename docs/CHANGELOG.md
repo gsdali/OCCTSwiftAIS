@@ -2,6 +2,16 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.6.2 — 2026-05-03
+
+Drops the `populateEdgeVertexPickArrays` workaround — [OCCTSwiftTools v0.5.0](https://github.com/gsdali/OCCTSwiftTools/releases/tag/v0.5.0) now populates `body.vertices` / `vertexIndices` / `edgeIndices` on the source-shape convention, so AIS no longer has to override Tools' output. Closes [OCCTSwiftTools#10](https://github.com/gsdali/OCCTSwiftTools/issues/10).
+
+`InteractiveContext.display(_:)` is back to a thin wrapper around `CADFileLoader.shapeToBodyAndMetadata`. ~30 lines removed; the round-trip from a vertex pick's `primitiveIndex` to `Selection.vertices` (via `shape.vertex(at: idx)`) keeps working because the data is now identical between Tools' output and what AIS used to write.
+
+**Dependencies:** floor raised to `OCCTSwiftTools` ≥ 0.5.0 (transitively `OCCTSwiftViewport` ≥ 0.55.1, `OCCTSwift` ≥ 0.168.0).
+
+**Tests:** 146 across 12 suites, all green. No new tests; the existing `EdgeVertexSelection` round-trips now exercise Tools' implementation rather than AIS's override.
+
 ## v0.6.1 — 2026-05-03
 
 Adopts the renderer-backed per-triangle highlight overlay shipped in [OCCTSwiftViewport v0.55.1](https://github.com/gsdali/OCCTSwiftViewport/releases/tag/v0.55.1) (closes [#25](https://github.com/gsdali/OCCTSwiftViewport/issues/25)). The v0.1 cheap-route normal-offset overlay is gone — `InteractiveContext.updateSelectionVisuals` now writes per-triangle `TriangleStyle` entries directly into the source body's `triangleStyles` array.
