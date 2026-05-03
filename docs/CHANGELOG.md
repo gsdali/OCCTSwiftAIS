@@ -2,6 +2,18 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.7.1 — 2026-05-03
+
+Adds three tests that exploit the cutter-simulation provenance of the STEP fixtures (CAM outputs from a 6 mm milling cutter).
+
+- `t_stockHasNoCircularEdges` — a CAM stock blank is a pure rectangular block; every edge has `isCircle == false`. Three parametrised cases over the committed stock files.
+- `t_wipFile_hasCircularEdgesFromCutterPath` — the WIP files (skip-on-missing) must have at least one circular edge from the cutter's footprint. Three parametrised cases.
+- `t_wipFile_radialDimensionOnCutterFootprint_resolves` — round-trip a `RadialDimension` on the first circular edge of each WIP: `radius` is finite + positive, label has the `R` prefix, `viewport.measurements` carries a `.radius` variant. Three parametrised cases.
+
+**Tests:** 158 across 14 suites. WIP suite now ~40 s on the three multi-MB files when present; stock suite still sub-second.
+
+**Dependencies:** unchanged.
+
 ## v0.7.0 — 2026-05-03
 
 Real-shape STEP integration tests. The end-to-end pipeline (`CADFileLoader.load` → `InteractiveContext.display` → synthetic `PickResult` → `Selection`) now runs against actual machined-part geometry, not just OCCT primitives.
