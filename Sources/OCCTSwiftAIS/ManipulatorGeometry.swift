@@ -84,6 +84,70 @@ enum ManipulatorGeometry {
         return (center, radius)
     }
 
+    /// Build a rotation handle ring (a thin torus) as a `ViewportBody`.
+    ///
+    /// The ring lies in the plane perpendicular to `axis`, centered on `pivot`.
+    /// `radius` is the major radius (centerline of the tube); `tubeRadius` is
+    /// the minor radius (tube cross-section). `sides` is the number of segments
+    /// around the ring; `tubeSides` is the segments around the tube.
+    static func makeRotationRing(
+        id: String,
+        pivot: SIMD3<Float>,
+        axis: SIMD3<Float>,
+        radius: Float,
+        tubeRadius: Float,
+        color: SIMD4<Float>,
+        sides: Int = 48,
+        tubeSides: Int = 8
+    ) -> ViewportBody {
+        let n = simd_normalize(axis)
+        let (u, v) = orthonormalBasis(forNormal: n)
+
+        var verts: [Float] = []
+        verts.reserveCapacity(sides * tubeSides * 6)
+        var indices: [UInt32] = []
+        indices.reserveCapacity(sides * tubeSides * 6)
+
+        for i in 0..<sides {
+            let theta = (Float(i) / Float(sides)) * 2 * .pi
+            // Radial direction (in ring plane) at this segment
+            let radial = u * cos(theta) + v * sin(theta)
+            let center = pivot + radial * radius
+            for j in 0..<tubeSides {
+                let phi = (Float(j) / Float(tubeSides)) * 2 * .pi
+                // Tube normal: rotated combination of radial and axis
+                let normal = radial * cos(phi) + n * sin(phi)
+                let p = center + normal * tubeRadius
+                verts.append(contentsOf: [p.x, p.y, p.z, normal.x, normal.y, normal.z])
+            }
+        }
+
+        for i in 0..<sides {
+            let i1 = (i + 1) % sides
+            for j in 0..<tubeSides {
+                let j1 = (j + 1) % tubeSides
+                let a = UInt32(i  * tubeSides + j)
+                let b = UInt32(i1 * tubeSides + j)
+                let c = UInt32(i1 * tubeSides + j1)
+                let d = UInt32(i  * tubeSides + j1)
+                indices.append(contentsOf: [a, b, c, a, c, d])
+            }
+        }
+
+        return ViewportBody(
+            id: id,
+            vertexData: verts,
+            indices: indices,
+            edges: [],
+            faceIndices: [],
+            color: color,
+            roughness: 0.3,
+            metallic: 0.05,
+            renderLayer: .overlay,
+            pickLayer: .widget
+        )
+    }
+
     // MARK: - Private helpers
 
     private static func appendCylinderRing(

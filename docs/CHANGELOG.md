@@ -2,6 +2,29 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.2.2 — 2026-05-03
+
+`ManipulatorWidget.Mode.rotate` is wired up. Three torus-handle rings appear at install (X / Y / Z, in `Axis.color`); a click on a ring begins a rotation drag; the drag delta is the angle between the initial and current pick-ray-vs-ring-plane intersections, with `snapRotateDeg` rounding. The running transform is `T(pivot) * R(axis, θ) * T(-pivot)`, so the target rotates **around its centroid** (the box-bbox center) and the pivot itself stays fixed. The target body's `ViewportBody.transform` updates live, like translate mode.
+
+Implemented entirely on `ManipulatorWidget` — no new public types or signatures. Translate-mode behavior is unchanged.
+
+**New internal pieces:**
+
+- `ManipulatorGeometry.makeRotationRing(id:pivot:axis:radius:tubeRadius:color:sides:tubeSides:)` — pure-Swift torus tessellation. `renderLayer = .overlay`, `pickLayer = .widget` like the arrow.
+- Rotate drag math: pick-ray intersects the ring plane (perpendicular to `axis` through `pivot`); angle measured in a per-axis stable in-plane basis via `atan2`; angle delta wrapped to `(-π, π]` so a drag crossing the ±π seam doesn't jump 2π.
+- New configurables: `rotateRingRadius`, `rotateTubeRadius`, `rotateHitTolerance`, `rotateAxisDotMin`. All have sensible defaults derived from `size` / `shaftRadius`.
+
+**Limitations (matching the cheap-route geometry approach):**
+
+- Rings are skipped from hit-testing when their plane is near-parallel to the view direction (`|dot(viewDir, axis)| < rotateAxisDotMin`). In a perfectly axis-on view, two of three rings degenerate to a line in screen space and become unpickable; rotate the camera slightly to recover. A renderer-side screen-space ellipse hit-test (or a CPU "drag along the projected ring tangent") would lift this; deferred to a later release.
+- Rings stay anchored at the pivot rather than co-rotating with the target. This keeps the visual reference of "what axis am I rotating around" stable during a long drag. (Some CAD apps rotate the rings; leave that as opt-in if asked.)
+
+**Tests:** 13 new in a `ManipulatorWidget rotate` suite. Total: 69 across 6 suites.
+
+`v0.3.0` is reserved for the bundled rotate + edge/vertex selection milestone per SPEC.md §"Sequencing", waiting on [OCCTSwiftViewport#24](https://github.com/gsdali/OCCTSwiftViewport/issues/24).
+
+**Dependencies:** unchanged from v0.2.1.
+
 ## v0.2.1 — 2026-05-03
 
 `ManipulatorWidget` adopts the renderer-side primitives that landed in [OCCTSwiftViewport v0.52.0](https://github.com/gsdali/OCCTSwiftViewport/releases/tag/v0.52.0) (resolves OCCTSwiftViewport#23). No public API changes.
