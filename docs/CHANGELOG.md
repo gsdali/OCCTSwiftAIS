@@ -2,6 +2,25 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.2.4 — 2026-05-03
+
+Standard scene objects per SPEC.md §"Standard objects". Each emits one or more `ViewportBody`s via `makeBodies()` that the caller appends to their `InteractiveContext.bodies`. They aren't selectable — they're visual aids only.
+
+**New public types:**
+
+- `Trihedron(at:axisLength:id:)` — three colored axis arrows (`ManipulatorWidget.Axis.color` palette) plus a small center sphere. Useful as a world-axes affordance.
+- `WorkPlane(origin:normal:size:color:id:)` — semi-transparent quad in the plane perpendicular to `normal`. Two triangles, six indices.
+- `Axis(from:to:color:radius:id:)` — thin cylinder between two world points; the `color` parameter is `SIMD3<Float>` to match SPEC, internally packed to `SIMD4<Float>(color, 1)`.
+- `PointCloudPresentation(points:colors:pointRadius:defaultColor:id:)` — N small spheres tessellated into a **single** `ViewportBody` for efficiency. Per-point colors not yet supported (renderer doesn't expose per-vertex color attributes); first entry of `colors` becomes the cloud's uniform color, else `defaultColor`.
+
+Each type has an `ownsBody(id:)` predicate so callers can remove all of an instance's bodies later via `context.bodies.removeAll { obj.ownsBody(id: $0.id) }`.
+
+**New internal:** `StandardObjectGeometry` — pure-Swift mesh helpers (`makeQuad`, `makeCylinder`, `makeSphere`, `makeSpheresInOneBody`). Multiple-spheres-as-one-mesh keeps the body count low for moderate clouds.
+
+**Tests:** 15 new in `StandardObjects` covering body counts, ID conventions, color application, geometry scaling with `axisLength` / `size`, normal correctness on the work-plane quad, zero-length axis edge case, color-from-first-entry on point cloud, empty-points no-op. Total: **95 across 8 suites**.
+
+**Dependencies:** unchanged from v0.2.3.
+
 ## v0.2.3 — 2026-05-03
 
 `.attachManipulator(_:)` SwiftUI view modifier — wraps a viewport view (e.g. `MetalViewportView`) with a `.highPriorityGesture(DragGesture)` that hit-tests the widget on touch-down and dispatches:
