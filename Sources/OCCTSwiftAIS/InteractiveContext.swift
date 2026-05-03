@@ -52,6 +52,11 @@ public final class InteractiveContext: ObservableObject {
     /// Tracked so we can replace them in-place on each selection update.
     private var overlayBodyIDs: Set<String> = []
 
+    /// Dimensions added via `add(_:)`. Strongly held so the dimension lives
+    /// as long as it's displayed; weak refs would let user-discarded
+    /// dimensions vanish from the scene.
+    var dimensionRegistry: [ObjectIdentifier: any Dimension] = [:]
+
     // MARK: - Registry
 
     private struct Entry {
@@ -143,6 +148,8 @@ public final class InteractiveContext: ObservableObject {
         entriesByBodyID.removeAll()
         selection = Selection()
         hover = nil
+        dimensionRegistry.removeAll()
+        viewport.measurements.removeAll()
     }
 
     // MARK: - Selection mutation
