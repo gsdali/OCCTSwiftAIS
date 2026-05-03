@@ -2,6 +2,26 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.2.3 — 2026-05-03
+
+`.attachManipulator(_:)` SwiftUI view modifier — wraps a viewport view (e.g. `MetalViewportView`) with a `.highPriorityGesture(DragGesture)` that hit-tests the widget on touch-down and dispatches:
+
+- **Widget hit:** `widget.beginDrag` / `updateDrag` / `endDrag` drives the translate or rotate transform.
+- **Off-handle:** drags forward to `viewport.handleOrbit(translation:)` so the camera responds normally. `endOrbit(velocity: .zero)` on release.
+
+Closes the loop on the manipulator UX — apps can now write `MetalViewportView(controller: ais.viewport, bodies: $ais.bodies).attachManipulator(myWidget)` instead of hand-rolling gesture wiring.
+
+**New public surface:**
+
+- `View.attachManipulator(_ widget: ManipulatorWidget) -> some View` — the modifier.
+- `ManipulatorWidget.context: InteractiveContext?` (read-only) — exposes the installed context so the modifier can route camera-fallback drags through `widget.context?.viewport`.
+
+**New internal:** `ManipulatorGestureCoordinator` factors the dispatch logic out of SwiftUI's gesture machinery so it's unit-testable. Pure-Swift; tracks `.idle` / `.widget(axis)` / `.camera` mode; exposes `onChanged(location:translation:in:)` and `onEnded()` entry points.
+
+**Tests:** 11 new in `ManipulatorGestureCoordinator` suite covering `ndcFromPoint` math (center → 0; top-left → (-1, +1); bottom-right → (+1, -1); zero size → zero), mode transitions on hit / miss, drag forwarding to widget, orbit forwarding to controller, commit on widget-mode end, and graceful no-op when widget has no installed context. Total: **80 across 7 suites**.
+
+**Dependencies:** unchanged from v0.2.2.
+
 ## v0.2.2 — 2026-05-03
 
 `ManipulatorWidget.Mode.rotate` is wired up. Three torus-handle rings appear at install (X / Y / Z, in `Axis.color`); a click on a ring begins a rotation drag; the drag delta is the angle between the initial and current pick-ray-vs-ring-plane intersections, with `snapRotateDeg` rounding. The running transform is `T(pivot) * R(axis, θ) * T(-pivot)`, so the target rotates **around its centroid** (the box-bbox center) and the pivot itself stays fixed. The target body's `ViewportBody.transform` updates live, like translate mode.

@@ -107,9 +107,14 @@ public final class ManipulatorWidget: ObservableObject {
 
     public var isDragging: Bool { activeAxis != nil }
 
+    /// The `InteractiveContext` this widget is currently installed in, or `nil`
+    /// before `install(in:)` and after `uninstall()`. Public read so the
+    /// `.attachManipulator(_:)` view modifier can route camera-fallback drags
+    /// through the same context's `viewport`.
+    public weak private(set) var context: InteractiveContext?
+
     // MARK: - Internal state
 
-    private weak var context: InteractiveContext?
     private var pivot: SIMD3<Float> = .zero
     private var preInstallTargetTransform: simd_float4x4 = matrix_identity_float4x4
 
