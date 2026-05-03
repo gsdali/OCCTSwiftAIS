@@ -87,6 +87,121 @@ public final class LinearDimension: Dimension, @unchecked Sendable {
     }
 }
 
+// MARK: - AngularDimension
+
+public final class AngularDimension: Dimension, @unchecked Sendable {
+
+    public let id: String
+    public let armA: SubShape
+    public let apex: SubShape
+    public let armB: SubShape
+    public var customLabel: String?
+
+    public init(
+        arms: (SubShape, SubShape),
+        apex: SubShape,
+        customLabel: String? = nil,
+        id: String? = nil
+    ) {
+        self.id = id ?? "ais.dimension.angular.\(UUID().uuidString)"
+        self.armA = arms.0
+        self.apex = apex
+        self.armB = arms.1
+        self.customLabel = customLabel
+    }
+
+    /// `[armA, apex, armB]` — preserves the standard "vertex in the middle"
+    /// convention that `ViewportMeasurement.angle` and most CAD apps expect.
+    public var anchorPoints: [SIMD3<Float>] {
+        [DimensionAnchor.resolve(armA),
+         DimensionAnchor.resolve(apex),
+         DimensionAnchor.resolve(armB)]
+    }
+
+    /// Angle at the apex, in degrees. NaN if either arm coincides with the apex.
+    public var degrees: Float {
+        let pts = anchorPoints
+        guard pts.count == 3 else { return .nan }
+        return ProjectionUtility.angle(pts[0], vertex: pts[1], pts[2])
+    }
+
+    public var label: String {
+        if let customLabel { return customLabel }
+        let d = degrees
+        if !d.isFinite { return "?" }
+        return String(format: "%.1f\u{00B0}", d)
+    }
+
+    public var viewportMeasurement: ViewportMeasurement {
+        let pts = anchorPoints
+        let a = pts.indices.contains(0) ? pts[0] : .zero
+        let v = pts.indices.contains(1) ? pts[1] : .zero
+        let b = pts.indices.contains(2) ? pts[2] : .zero
+        return .angle(AngleMeasurement(id: id, pointA: a, vertex: v, pointB: b, label: customLabel))
+    }
+}
+
+// MARK: - RadialDimension
+
+public final class RadialDimension: Dimension, @unchecked Sendable {
+
+    public let id: String
+    public let circularEdge: SubShape
+
+    /// If true, the rendered label uses ⌀ and the diameter; otherwise R and the radius.
+    public var showDiameter: Bool
+
+    public var customLabel: String?
+
+    public init(
+        circularEdge: SubShape,
+        showDiameter: Bool = false,
+        customLabel: String? = nil,
+        id: String? = nil
+    ) {
+        self.id = id ?? "ais.dimension.radial.\(UUID().uuidString)"
+        self.circularEdge = circularEdge
+        self.showDiameter = showDiameter
+        self.customLabel = customLabel
+    }
+
+    /// `[center, pointOnEdge]`. Returns `[.zero, .zero]` when the sub-shape
+    /// isn't an edge or its underlying curve isn't circular.
+    public var anchorPoints: [SIMD3<Float>] {
+        guard let (center, edgePoint, _) = DimensionAnchor.resolveCircle(circularEdge) else {
+            return [.zero, .zero]
+        }
+        return [center, edgePoint]
+    }
+
+    public var radius: Float {
+        DimensionAnchor.resolveCircle(circularEdge)?.2 ?? .nan
+    }
+
+    public var diameter: Float { radius * 2 }
+
+    public var label: String {
+        if let customLabel { return customLabel }
+        let value = showDiameter ? diameter : radius
+        if !value.isFinite { return "?" }
+        let prefix = showDiameter ? "\u{2300}" : "R"
+        return prefix + DimensionAnchor.formatDistance(value)
+    }
+
+    public var viewportMeasurement: ViewportMeasurement {
+        let pts = anchorPoints
+        let center = pts.indices.contains(0) ? pts[0] : .zero
+        let edge   = pts.indices.contains(1) ? pts[1] : .zero
+        return .radius(RadiusMeasurement(
+            id: id,
+            center: center,
+            edgePoint: edge,
+            showDiameter: showDiameter,
+            label: customLabel
+        ))
+    }
+}
+
 // MARK: - Anchor resolution
 
 /// Maps a `SubShape` to a world-space anchor point. Used by dimension types.
@@ -136,6 +251,28 @@ enum DimensionAnchor {
     private static func resolveVertex(_ obj: InteractiveObject, vertexIndex: Int) -> SIMD3<Float> {
         guard let p = obj.shape.vertex(at: vertexIndex) else { return .zero }
         return SIMD3<Float>(Float(p.x), Float(p.y), Float(p.z))
+    }
+
+    /// If `subshape` is a circular edge, return `(center, pointOnCircle, radius)`
+    /// in world space. The `pointOnCircle` is the edge's start endpoint —
+    /// guaranteed to lie on the circle when the edge is a circular arc /
+    /// closed circle.
+    static func resolveCircle(_ subshape: SubShape) -> (SIMD3<Float>, SIMD3<Float>, Float)? {
+        guard case .edge(let obj, let idx) = subshape,
+              let edge = obj.shape.edge(at: idx),
+              edge.isCircle,
+              let curve = edge.curve3D else {
+            return nil
+        }
+        let props = curve.circleProperties
+        let center = SIMD3<Float>(Float(props.center.x), Float(props.center.y), Float(props.center.z))
+        let radius = Float(props.radius)
+        let edgePoint = SIMD3<Float>(
+            Float(edge.endpoints.start.x),
+            Float(edge.endpoints.start.y),
+            Float(edge.endpoints.start.z)
+        )
+        return (center, edgePoint, radius)
     }
 
     /// Project `point` orthogonally onto `plane` (signed perpendicular drop).

@@ -2,6 +2,23 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.5.0 — 2026-05-03
+
+Angular and radial dimensions per SPEC.md §"Sequencing" v0.5. With this release the dimension surface is feature-complete (linear / angular / radial) and the public API listed in SPEC.md §"Dimensions" is now fully implemented. Rendering still rides on `MetalViewportView`'s built-in `MeasurementOverlay` — no renderer-side changes.
+
+**New public types:**
+
+- `final class AngularDimension: Dimension` — `init(arms:apex:customLabel:id:)`. Anchors order is `[armA, apex, armB]` matching the standard "vertex in the middle" convention. `degrees` reports the angle at the apex via `ProjectionUtility.angle`; `label` formats with the degree glyph. Emits `ViewportMeasurement.angle`.
+- `final class RadialDimension: Dimension` — `init(circularEdge:showDiameter:customLabel:id:)`. Resolves `(center, edgePoint, radius)` from `Edge.curve3D.circleProperties` when the underlying curve is circular; falls back to collapsed anchors + `"?"` label when it isn't. `showDiameter` toggles between `R<radius>` and `⌀<diameter>`. Emits `ViewportMeasurement.radius`.
+
+**New internal:** `DimensionAnchor.resolveCircle(_:)` — returns `(center, pointOnCircle, radius)` for an `.edge` sub-shape whose curve is circular; nil otherwise.
+
+**Tests:** 14 new in `AngularDimension / RadialDimension`. Total: **136 across 11 suites**. Coverage: anchor ordering for the angular case; degree-glyph in label; cylinder-edge round-trip for radial (radius matches construction within 1e-3); `R` vs `⌀` prefix; non-circular edge / non-edge sub-shape produces collapsed anchors and `"?"` label; mixed dimensions (linear + angular + radial) coexist in the registry.
+
+**Dependencies:** unchanged from v0.4.0.
+
+**SPEC milestone:** With v0.5.0 the dimension trio is in. Per SPEC sequencing, **v0.6.0+** is "polish + power features" — renderer-backed highlight overlay (replacing the v0.1 cheap-route normal-offset trick) and history-based selection remap (`InteractiveContext.remap(selection:after:)`), both of which need OCCTSwift / OCCTSwiftViewport coordination.
+
 ## v0.4.0 — 2026-05-03
 
 Linear dimensions per SPEC.md §"Dimensions". `LinearDimension(from:to:plane:?)` resolves topology-aware anchors (vertex position / edge midpoint / face bbox center / body bbox center) and reports a labeled distance. Rendering reuses OCCTSwiftViewport's existing `MeasurementOverlay` (SwiftUI Canvas) — **no renderer-side changes needed**.
