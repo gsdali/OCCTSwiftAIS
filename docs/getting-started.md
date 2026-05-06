@@ -1,6 +1,6 @@
 # Getting started with OCCTSwiftAIS
 
-A walkthrough that builds up a SwiftUI CAD viewer from a blank `MetalViewportView` to one with face selection, a translate gizmo, and a linear dimension. Everything in this guide compiles against `OCCTSwiftAIS` v0.6.3.
+A walkthrough that builds up a SwiftUI CAD viewer from a blank `MetalViewportView` to one with face selection, a translate gizmo, and a linear dimension. Everything in this guide compiles against `OCCTSwiftAIS` v0.7.2.
 
 If you just want to see one snippet, the [README's 30-second example](../README.md#30-second-example) is enough. This guide is for "I want to understand each moving piece".
 
@@ -8,7 +8,7 @@ If you just want to see one snippet, the [README's 30-second example](../README.
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/gsdali/OCCTSwiftAIS.git", from: "0.6.2"),
+.package(url: "https://github.com/gsdali/OCCTSwiftAIS.git", from: "0.7.2"),
 ```
 
 Then `.product(name: "OCCTSwiftAIS", package: "OCCTSwiftAIS")` on your target. AIS pulls `OCCTSwiftTools`, `OCCTSwiftViewport`, and `OCCTSwift` transitively — no need to declare them separately.
