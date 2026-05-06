@@ -2,6 +2,16 @@
 
 Most recent first. Pre-1.0: free to break; deprecations documented here.
 
+## v0.7.2 — 2026-05-07
+
+Housekeeping floor bump + comment fix. No behaviour change.
+
+- **`Package.swift`**: `OCCTSwiftTools` floor raised from `0.5.0` to `0.6.0`. Tools v0.6.0 splits file-I/O concerns into the new [OCCTSwiftIO](https://github.com/gsdali/OCCTSwiftIO) sibling and `@_exported import`s it, so AIS's existing `OCCTSwiftTools.X` references still resolve unchanged. Closes [#17](https://github.com/gsdali/OCCTSwiftAIS/issues/17).
+- **`Dimension.swift:233`**: stray comment naming `OCCTSwiftTools.ShapeMeasurements.faceCentroids` updated to point at the kernel-hoisted `ShapeMeasurements.faceCentroids` in OCCTSwift (`OCCTSwift` v0.170.1 / Tools v0.5.1). Comment-only — the bbox-centroid heuristic in `resolveFace` is unchanged. Closes [#16](https://github.com/gsdali/OCCTSwiftAIS/issues/16).
+- Install snippets in `README.md` and `docs/getting-started.md` refreshed to `from: "0.7.2"`.
+
+**Tests:** 158 across 14 suites, all green. No new tests.
+
 ## v0.7.1 — 2026-05-03
 
 Adds three tests that exploit the cutter-simulation provenance of the STEP fixtures (CAM outputs from a 6 mm milling cutter).

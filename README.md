@@ -19,7 +19,7 @@ High-level **Application Interactive Services** for the OCCTSwift / OCCTSwiftVie
 ## Installation
 
 ```swift
-.package(url: "https://github.com/gsdali/OCCTSwiftAIS.git", from: "0.6.3"),
+.package(url: "https://github.com/gsdali/OCCTSwiftAIS.git", from: "0.7.2"),
 ```
 
 `OCCTSwiftAIS` transitively pulls `OCCTSwiftTools`, `OCCTSwiftViewport`, and `OCCTSwift`.

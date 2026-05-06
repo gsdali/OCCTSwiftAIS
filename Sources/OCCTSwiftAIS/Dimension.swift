@@ -230,7 +230,7 @@ enum DimensionAnchor {
     private static func resolveFace(_ obj: InteractiveObject, faceIndex: Int) -> SIMD3<Float> {
         // Bbox center of the face — cheap, robust for axis-aligned faces.
         // Curved faces would be better served by the area-weighted centroid
-        // (OCCTSwiftTools.ShapeMeasurements.faceCentroids) but that's an
+        // (`ShapeMeasurements.faceCentroids` from OCCTSwift) but that's an
         // O(faces) computation; bbox center is constant time per face.
         guard let faceShape = obj.shape.subShape(type: .face, index: faceIndex),
               let face = OCCTSwift.Face(faceShape) else {
