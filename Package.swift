@@ -17,14 +17,14 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // Brings in OCCTSwift and OCCTSwiftViewport transitively. Tools 0.6.0
-        // splits file I/O into the new OCCTSwiftIO sibling and re-exports it,
-        // so existing `OCCTSwiftTools.X` references still resolve. Tools 0.5.0+
-        // populates `body.vertices` / `vertexIndices` / `edgeIndices` on the
-        // source-shape convention, so AIS no longer has to override them — see
-        // OCCTSwiftTools#10. Transitively resolves OCCTSwiftViewport ≥ 0.55.1
-        // (renderer-backed `body.triangleStyles` highlight overlay).
-        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "0.6.0"),
+        // Brings in OCCTSwift and OCCTSwiftViewport transitively. Tools 1.0.0
+        // graduates alongside OCCTSwift v1.0.0 (OCCT 8.0.0 GA, 2026-05-07).
+        // Re-exports OCCTSwiftIO so existing `OCCTSwiftTools.X` references still
+        // resolve. Body picking metadata convention (vertices / vertexIndices /
+        // edgeIndices) preserved across the v1.0 cut — see OCCTSwiftTools#10.
+        // Transitively resolves OCCTSwiftViewport ≥ 0.55.1 (renderer-backed
+        // `body.triangleStyles` highlight overlay).
+        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "1.0.0"),
     ],
     targets: [
         .target(
