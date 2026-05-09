@@ -17,14 +17,13 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // Brings in OCCTSwift and OCCTSwiftViewport transitively. Tools 1.0.0
-        // graduates alongside OCCTSwift v1.0.0 (OCCT 8.0.0 GA, 2026-05-07).
-        // Re-exports OCCTSwiftIO so existing `OCCTSwiftTools.X` references still
-        // resolve. Body picking metadata convention (vertices / vertexIndices /
-        // edgeIndices) preserved across the v1.0 cut — see OCCTSwiftTools#10.
-        // Transitively resolves OCCTSwiftViewport ≥ 0.55.1 (renderer-backed
-        // `body.triangleStyles` highlight overlay).
-        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "1.0.0"),
+        // Brings in OCCTSwift and OCCTSwiftViewport transitively. Tools 1.0.2
+        // graduates onto the SemVer-stable Viewport 1.0.x line and pulls the
+        // v1.0.3 history APIs from OCCTSwift. Re-exports OCCTSwiftIO so
+        // existing `OCCTSwiftTools.X` references still resolve. Body picking
+        // metadata convention (vertices / vertexIndices / edgeIndices)
+        // preserved across the v1.0 cut — see OCCTSwiftTools#10.
+        .package(url: "https://github.com/gsdali/OCCTSwiftTools.git", from: "1.0.2"),
     ],
     targets: [
         .target(
