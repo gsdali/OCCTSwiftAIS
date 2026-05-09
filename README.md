@@ -4,7 +4,9 @@
 
 High-level **Application Interactive Services** for the OCCTSwift / OCCTSwiftViewport stack — selection-from-topology, manipulator widgets, dimension annotations, and standard scene objects, all in pure Swift.
 
-> Current: **v0.7.0**. The SPEC's stated v0.x feature surface is fully shipped; v1.0 waits on OCCT 8.0.0 and SPI submission. See [SPEC.md](SPEC.md) for the design brief and [docs/CHANGELOG.md](docs/CHANGELOG.md) for per-release notes.
+Part of the [OCCTSwift ecosystem](https://github.com/gsdali/OCCTSwift/blob/main/docs/ecosystem.md) — see the ecosystem map for how this package fits with the kernel, viewport, and sibling layers.
+
+> Current: **v1.0.0**. SemVer-stable from this tag, pinned alongside OCCTSwift v1.0.0 (OCCT 8.0.0 GA cohort). See [SPEC.md](SPEC.md) for the design brief and [docs/CHANGELOG.md](docs/CHANGELOG.md) for per-release notes.
 
 ## What's in the box
 
